@@ -1,5 +1,9 @@
 import socket as s
 
+class Client: 
+    def __init__(self):
+        pass
+
 
 request = input("Digite o destino: ")
 path, file = request.strip('@').split('/')

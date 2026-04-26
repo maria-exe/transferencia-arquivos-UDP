@@ -1,24 +1,26 @@
 import socket as s
 
-    # class Protocol: 
-    #     pass
+class Server:
+    def __init__(self):
+        pass
 
-    # class RequestProcess: 
-    #     pass
+    def reception():
+        serverSocket = s.socket(s.AF_INET, s.SOCK_DGRAM)
+        serverSocket.bind(('', 12000))
 
-    # class FileTransmission: 
-    #     pass
+        print('Escutando...')
 
-serverSocket = s.socket(s.AF_INET, s.SOCK_DGRAM)
-serverSocket.bind(('', 12000))
+        while True:
+            msg, addr = serverSocket.recvfrom(2048)
+            print(f"Recebi de {addr}: {msg.decode()}")
+            mod_msg = msg.decode().upper()
+            serverSocket.sendto(mod_msg.encode(), addr)
 
-print('Escutando...')
+    def request_file_process():
+        pass
 
-while True:
-    msg, addr = serverSocket.recvfrom(2048)
-    print(f"Recebi de {addr}: {msg.decode()}")
-    mod_msg = msg.decode().upper()
-    serverSocket.sendto(mod_msg.encode(), addr)
+    def file_transmission():
+        pass
 
 
  
