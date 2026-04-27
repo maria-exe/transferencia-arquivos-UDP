@@ -1,4 +1,4 @@
-import socket as s
+import socket as s, protocolo as p
 import sys
 
 # requisicao do usuario (@IP_Servidor:Porta_Servidor/nome_do_arquivo.ext)
@@ -7,32 +7,28 @@ def file_parser():
         print("Erro de requisicao: @IP_Servidor:Porta_Servidor/nome_do_arquivo.ext")
         sys.exit(1)
     
-    request_file = request_file[1].lstrip("@")
-    addr, file_name = file.split("/")
+    request_file = sys.argv[1].lstrip("@")
+    addr, file_name = request_file.split("/")
     ip_server, port_server = addr.split(":")
 
-    return int(ip_server), port_server, file_name
+    return ip_server, int(port_server), file_name
 
 # implementar erro de encontrar arquivo
 
-
 class Client: 
-    def __init__(self, ip, port):
-        pass
+    def __init__(self):
+        self.socket = s.socket(s.AF_INET, s.SOCK_DGRAM)
+        self.segments = {} 
+        self.total_segments = None
+
+    def send_request(self, ip, port, file_name):
+        message = p.get(file_name)
+        self.socket.sendto(message, (ip, port))
 
 
-request = input("Digite o destino: ")
-path, file = request.strip('@').split('/')
-ip_address, port = path.split(':')
-        
-clientSocket = s.socket(s.AF_INET, s.SOCK_DGRAM)
+        resp, addr = self.clientSocket.recvfrom(1472)
 
-message = "Hello World!"
-clientSocket.sendto(message.encode(), (ip_address, int(port)))
-
-resp, addr = clientSocket.recvfrom(2048)
-
-print('Servidor:', resp.decode())
-clientSocket.close()
+        print('Servidor:', resp.decode())
+        self.socket.close()
 
 

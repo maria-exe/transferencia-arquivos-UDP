@@ -1,24 +1,17 @@
-# protocolo de transferência confiável de dados
-# 1. sem dados corrompidos, 2. perdidos e 3. fora de ordem
-
-# 1. Detecção de erro (checksum) -- protocolo
-
-# 2. Ordenação (n de sequencia) -- no dataclass segmento
- 
-# 3. Retransmissão --- na classe servidor
-
 from dataclasses import dataclass
 import struct, zlib
 
 MAX_DGRAM = 1472
-PORT = 12000
+PORT = 5000
 FORMAT = "!I I I"
+H_SIZE = struct.calcsize(FORMAT)  
+PAYLOAD_SIZE = MAX_DGRAM - H_SIZE
 
 # estrutura do pacote de dados
 @dataclass
 class Segment: 
     checksum: int
-    seg: int    # dps precisa checar esse número para determinar se é retransmissão
+    seg: int    
     data: bytes
     total_seg: int
 
@@ -42,8 +35,8 @@ def pack_pkt(segment):
 
 # desempacota o segmento
 def extract_pkt(pack_data):
-    hr_seq = pack_data[:FORMAT]
-    data = pack_data[FORMAT:]
+    hr_seq = pack_data[:H_SIZE]
+    data = pack_data[H_SIZE:]
     seg, total_seq, checksum = struct.unpack(FORMAT, hr_seq)
     
     return Segment(checksum, seg, data, total_seq)
@@ -51,11 +44,37 @@ def extract_pkt(pack_data):
 # verifica o checksum
 def is_corrupt(segment):
     if checksum(segment.data) == segment.checksum:
-        return True
-    return False
+        return False
+    return True
 
-# Implementaco das mensagens de controle
-# Definir claramente os formatos das mensagens de: requisição de arquivo, envio de segmento de dados 
-# (incluindo cabeçalhos com número de sequência, checksum, etc.), confirmação de recebimento (se houver), 
-# solicitação de retransmissão e mensagens de erro.
+def get(request_file): # requisicao de arquivos
+    return f"GTT:{request_file}".encode()
+
+def error(request_file): # mensagens de erro
+    return f"ERR:{request_file}".encode()
+
+def retrans_request(segments): # solicitacao de retransmissao
+    str_seg = ':'.join(map(str, segments))
+    return f"RTS:{str_seg}".encode()
+
+def decode_message(bytes_msg): # decodifica os bytes e identifica o tipo de mensagem de controle
+    if bytes_msg.startswith(b"GTT"):
+        return "GET", bytes_msg.decode().split(":", 1)[1]
+    
+    elif bytes_msg.startswith(b"ERR"):
+        return "ERR", bytes_msg.decode().split(":", 1)[1]
+    
+    elif bytes_msg.startswith(b"RTS"):
+        
+        msg = bytes_msg.decode().split(":", 1)[1]
+        
+        segments = []
+        for s in msg.split(":"):
+            segments.append(int(s))
+        
+        return "RTS", segments
+    
+    return "DATA", None
+    
+
 
