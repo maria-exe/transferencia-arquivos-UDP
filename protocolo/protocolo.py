@@ -27,16 +27,35 @@ def checksum(data):
 
 # cria o segmento
 def make_pkt(seg, data, total_seg):
-    checksum = checksum(data)
-    return Segment(checksum, seg, data, total_seg)
+    csum = checksum(data)
+    return Segment(csum, seg, data, total_seg)
 
-def extract_pkt(packet, data):
-    pass
+# transforma o segmento em bytes (empacota)
+def pack_pkt(segment):
+    hr_seq = struct.pack(
+        FORMAT,
+        segment.seg,
+        segment.total_seg,
+        segment.checksum
+    )
+    return hr_seq + segment.data
 
-def verify_seq_number():
-    pass
-# funcoes do protocolo de aplicacao
+# desempacota o segmento
+def extract_pkt(pack_data):
+    hr_seq = pack_data[:FORMAT]
+    data = pack_data[FORMAT:]
+    seg, total_seq, checksum = struct.unpack(FORMAT, hr_seq)
+    
+    return Segment(checksum, seg, data, total_seq)
+    
+# verifica o checksum
+def is_corrupt(segment):
+    if checksum(segment.data) == segment.checksum:
+        return True
+    return False
 
+# Implementaco das mensagens de controle
+# Definir claramente os formatos das mensagens de: requisição de arquivo, envio de segmento de dados 
+# (incluindo cabeçalhos com número de sequência, checksum, etc.), confirmação de recebimento (se houver), 
+# solicitação de retransmissão e mensagens de erro.
 
-
-# 0 nak, 1 ack

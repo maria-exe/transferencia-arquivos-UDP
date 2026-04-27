@@ -1,7 +1,10 @@
 import socket as s
 
+
 class Server:
+# file
     def __init__(self):
+        self.port = 10200
         pass
 
     def reception():
