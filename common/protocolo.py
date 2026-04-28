@@ -48,17 +48,17 @@ def is_corrupt(segment):
     return True
 
 def get(request_file): # requisicao de arquivos
-    return f"GTT:{request_file}".encode()
+    return f"GET:{request_file}".encode()
 
 def error(request_file): # mensagens de erro
-    return f"ERR:{request_file}".encode()
+    return f"ERR:FILE {request_file} NOT FOUND".encode()
 
 def retrans_request(segments): # solicitacao de retransmissao
     str_seg = ':'.join(map(str, segments))
     return f"RTS:{str_seg}".encode()
 
 def decode_message(bytes_msg): # decodifica os bytes e identifica o tipo de mensagem de controle
-    if bytes_msg.startswith(b"GTT"):
+    if bytes_msg.startswith(b"GET"):
         return "GET", bytes_msg.decode().split(":", 1)[1]
     
     elif bytes_msg.startswith(b"ERR"):

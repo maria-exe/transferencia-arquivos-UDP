@@ -1,5 +1,6 @@
-import socket as s, protocolo as p
+import socket as s
 import sys
+from common import protocolo as p
 
 # requisicao do usuario (@IP_Servidor:Porta_Servidor/nome_do_arquivo.ext)
 def file_parser():
@@ -26,9 +27,13 @@ class Client:
         self.socket.sendto(message, (ip, port))
 
 
-        resp, addr = self.clientSocket.recvfrom(1472)
+        resp, addr = self.clientSocket.recvfrom(p.MAX_DGRAM)
 
         print('Servidor:', resp.decode())
         self.socket.close()
 
+    def mount_segment(self):
+        pass
 
+    
+    # simulacao de perda de pacote
