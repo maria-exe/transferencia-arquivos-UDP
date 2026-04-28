@@ -1,5 +1,5 @@
 import socket as s
-import sys
+import os, sys
 from common import protocolo as p
 
 # requisicao do usuario (@IP_Servidor:Porta_Servidor/nome_do_arquivo.ext)
@@ -32,8 +32,27 @@ class Client:
         print('Servidor:', resp.decode())
         self.socket.close()
 
+    def verify_integrity(self):
+        pass
+
     def mount_segment(self):
         pass
 
+    def save_file(self, filename, mount_data):
+        folder = "./cliente/downloads/"
+        os.makedirs(folder, exist_ok=True)
+        
+        full_path = os.path.join(folder, filename)
+
+        try:
+            with open(full_path, "wb") as f:
+                f.write(mount_data)
+                print("Arquivo salvo com sucesso!")
+        
+        except OSError as e:
+            print(f"Erro ao salvar arquivo: {e}")
+
+
     
     # simulacao de perda de pacote
+    # solicitar retransmissão de arquivos

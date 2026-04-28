@@ -1,4 +1,4 @@
-import os.path, socket as s
+import os.path, socket as s, threading
 from common import protocolo as p
 
 class Server:
@@ -40,12 +40,14 @@ class Server:
             
             # mod_msg = msg.decode().upper()
             # self.socket.sendto(mod_msg.encode(), addr)
- 
-
-    def request_file_process():
+    
+    def create_segments(self):
         pass
 
-    def file_transmission():
+    def request_file_process(self):
+        pass
+
+    def file_transmission(self):
         pass
 
 
