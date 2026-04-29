@@ -7,7 +7,7 @@ FORMAT = "!I I I"
 H_SIZE = struct.calcsize(FORMAT)  
 MSS = MAX_DGRAM - H_SIZE
 TIMEOUT = 3
-
+MAX_RETRIES = 3
 # estrutura do pacote de dados
 @dataclass
 class Segment: 
@@ -38,9 +38,9 @@ def pack_pkt(segment):
 def extract_pkt(pack_data):
     hr_seq = pack_data[:H_SIZE]
     data = pack_data[H_SIZE:]
-    seg, total_seq, checksum = struct.unpack(FORMAT, hr_seq)
+    seg, total_seq, csum = struct.unpack(FORMAT, hr_seq)
     
-    return Segment(checksum, seg, data, total_seq)
+    return Segment(csum, seg, data, total_seq)
     
 # verifica o checksum
 def is_corrupt(segment):

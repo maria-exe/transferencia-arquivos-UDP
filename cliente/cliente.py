@@ -27,14 +27,28 @@ class Client:
     def send_request(self, ip, port, file_name): # GET
         addr = (ip, port)
         message = p.get(file_name)
+        
+        retries = 0
+        
         self.socket.sendto(message, (ip, port))
 
         self.receive_segments()
         
-        while self.missing_segments():
+        while self.missing_segments() and retries < p.MAX_RETRIES:
+            faltantes_antes = len(self.missing_segments())
             self.request_retransmit(addr)
             self.receive_segments()
+
+            if len(self.missing_segments()) == faltantes_antes:
+                retries += 1
+                print(f"Falha na retransmissao. Tentativa {retries}/{p.MAX_RETRIES}")
+            else:
+                retries = 0 
             
+        if self.missing_segments():
+            print("Arquivo incompleto.")
+            sys.exit(1)
+
         data = self.mount_segment()
         print(f"Segmentos recebidos: {len(self.segments)}")
         print(f"Total esperado: {self.total_segments}")
@@ -46,19 +60,28 @@ class Client:
         while True: 
             try:
                 recv_seg, addr = self.socket.recvfrom(p.MAX_DGRAM)
-                dmount_seg = p.extract_pkt(recv_seg)
+                type, data = p.decode_message(recv_seg)
 
-                if not p.is_corrupt(dmount_seg):
-                    self.segments[dmount_seg.seg] = dmount_seg
-                    self.total_segments = dmount_seg.total_seg
+                if type == "ERR":
+                    print(f"Erro retornado pelo servidor: {data}")
+                    sys.exit(1)
+
+                elif type == "DATA":
+                    dmount_seg = p.extract_pkt(recv_seg)
+
+                    if not p.is_corrupt(dmount_seg):
+                        self.segments[dmount_seg.seg] = dmount_seg
+                        self.total_segments = dmount_seg.total_seg
 
             except s.timeout:
                 break
         
     def mount_segment(self):
         file_data = b"" # tipo obj de bytes
+        
         for seq in sorted(self.segments):
             file_data += self.segments[seq].data
+        
         print(f"Tamanho remontado: {len(file_data)} bytes")
         return file_data
 
@@ -74,7 +97,7 @@ class Client:
         return list(missing_segs)
 
     def save_file(self, file_name, mount_data):
-        folder = "./downloads/"
+        folder = os.path.join(os.path.dirname(__file__), 'downloads')
         os.makedirs(folder, exist_ok=True)
         full_path = os.path.join(folder, file_name)
 
@@ -82,13 +105,17 @@ class Client:
             with open(full_path, "wb") as f:
                 f.write(mount_data)
             print("Arquivo salvo com sucesso!")
-            os.system(f"xdg-open {full_path}")  # ← fora do with
+            
+            os.system(f"xdg-open {full_path}")  
+        
         except OSError as e:
             print(f"Erro ao salvar arquivo: {e}")
 
     # solicitar retransmissão de arquivos
     def request_retransmit(self, addr):
-        message = p.retrans_request(self.missing_segments())
+        missing = self.missing_segments()
+        message = p.retrans_request(missing)
+        print(f"Solicitando retransmissao . . .")
         self.socket.sendto(message, addr)
 
 
