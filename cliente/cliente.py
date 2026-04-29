@@ -60,13 +60,13 @@ class Client:
         while True: 
             try:
                 recv_seg, addr = self.socket.recvfrom(p.MAX_DGRAM)
-                type, data = p.decode_message(recv_seg)
+                msg_type, data = p.decode_message(recv_seg)
 
-                if type == "ERR":
+                if msg_type == "ERR":
                     print(f"Erro retornado pelo servidor: {data}")
                     sys.exit(1)
 
-                elif type == "DATA":
+                elif msg_type == "DATA":
                     dmount_seg = p.extract_pkt(recv_seg)
 
                     if not p.is_corrupt(dmount_seg):

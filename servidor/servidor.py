@@ -38,20 +38,20 @@ class Server:
                 
      
     def handle_request(self, data, addr):
-            request_type, decoded_data = p.decode_message(data)
+        request_type, decoded_data = p.decode_message(data)
 
-            if request_type == "GET": 
-                if self._verify_request_file(decoded_data):# se o arquivo existe
-                    self.send_file(decoded_data, addr)
+        if request_type == "GET": 
+            if self._verify_request_file(decoded_data):# se o arquivo existe
+                self.send_file(decoded_data, addr)
                 
-                else: 
-                    self.send_error(decoded_data, addr)
-        
-            elif request_type == "RTS":
-                self.retransmit_data(decoded_data, addr)
-
             else: 
-                print("Mensagem desconhecida")
+                self.send_error(decoded_data, addr)
+        
+        elif request_type == "RTS":
+            self.retransmit_data(decoded_data, addr)
+
+        else: 
+            print("Mensagem desconhecida")
  
     def send_error(self, data, addr):
         self.socket.sendto(p.error(data), addr)
