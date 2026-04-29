@@ -1,5 +1,7 @@
-import os.path, socket as s, threading, math
-from common import protocolo as p
+import os, sys, socket as s, threading, math
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import protocolo as p
 
 class Server:
 # file
@@ -27,21 +29,22 @@ class Server:
                 
                 package = p.pack_pkt(segment)
                 self.socket.sendto(package, addr)
-
                 seq_num += 1
+                chunk = f.read(p.MSS)
+                
      
     def handle_request(self, data, addr):
             request_type, decoded_data = p.decode_message(data)
 
             if request_type == "GET": 
                 if self._verify_request_file(decoded_data):# se o arquivo existe
-                    self.send_file(self, decoded_data, addr)
+                    self.send_file(decoded_data, addr)
                 
                 else: 
-                    self.send_error(data, addr)
+                    self.send_error(decoded_data, addr)
         
             elif request_type == "RTS":
-                self.retransmit_data(self)
+                self.retransmit_data(decoded_data, addr)
 
             else: 
                 print("Mensagem desconhecida")
@@ -69,6 +72,11 @@ class Server:
                 package = p.pack_pkt(self.segments[seg])
                 self.socket.sendto(package, addr)
                            
+
+# instancia do servidor
+if __name__ == "__main__":
+    server = Server()
+    server.in_listen()
    
 
 

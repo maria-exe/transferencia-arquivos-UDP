@@ -1,6 +1,8 @@
 import socket as s
 import os, sys
-from common import protocolo as p
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import protocolo as p
 
 # requisicao do usuario (@IP_Servidor:Porta_Servidor/nome_do_arquivo.ext)
 def file_parser():
@@ -22,38 +24,83 @@ class Client:
         self.segments = {} 
         self.total_segments = None
 
-    def send_request(self, ip, port, file_name):
+    def send_request(self, ip, port, file_name): # GET
+        addr = (ip, port)
         message = p.get(file_name)
         self.socket.sendto(message, (ip, port))
-        resp, addr = self.socket.recvfrom(p.MAX_DGRAM)
 
-        print('Servidor:', resp.decode())
-        self.socket.close()
+        self.receive_segments()
+        
+        while self.missing_segments():
+            self.request_retransmit(addr)
+            self.receive_segments()
+            
+        data = self.mount_segment()
+        print(f"Segmentos recebidos: {len(self.segments)}")
+        print(f"Total esperado: {self.total_segments}")
+        self.save_file(file_name, data)
 
-    def verify_integrity(self):
-        pass
+        
+    def receive_segments(self):
+        self.socket.settimeout(p.TIMEOUT)
+        while True: 
+            try:
+                recv_seg, addr = self.socket.recvfrom(p.MAX_DGRAM)
+                dmount_seg = p.extract_pkt(recv_seg)
 
+                if not p.is_corrupt(dmount_seg):
+                    self.segments[dmount_seg.seg] = dmount_seg
+                    self.total_segments = dmount_seg.total_seg
+
+            except s.timeout:
+                break
+        
     def mount_segment(self):
-        pass
+        file_data = b"" # tipo obj de bytes
+        for seq in sorted(self.segments):
+            file_data += self.segments[seq].data
+        print(f"Tamanho remontado: {len(file_data)} bytes")
+        return file_data
+
+    # verifica se foi recebido todos os segmentos
+    def missing_segments(self):
+        if self.total_segments is None:
+            return []
+        
+        expect_segments = set(range(self.total_segments))
+        received_segments = set(self.segments.keys())
+        missing_segs = expect_segments - received_segments
+        
+        return list(missing_segs)
 
     def save_file(self, file_name, mount_data):
-        folder = "./cliente/downloads/"
+        folder = "./downloads/"
         os.makedirs(folder, exist_ok=True)
-        
         full_path = os.path.join(folder, file_name)
 
         try:
             with open(full_path, "wb") as f:
                 f.write(mount_data)
-                print("Arquivo salvo com sucesso!")
-                
-                os.system(f"xdg-open {full_path}") # mostra arquivo
-        
+            print("Arquivo salvo com sucesso!")
+            os.system(f"xdg-open {full_path}")  # ← fora do with
         except OSError as e:
             print(f"Erro ao salvar arquivo: {e}")
 
     # solicitar retransmissão de arquivos
-    def request_retransmit(self):
-        pass
-    # simulacao de perda de pacote
+    def request_retransmit(self, addr):
+        message = p.retrans_request(self.missing_segments())
+        self.socket.sendto(message, addr)
+
+
+if __name__ == "__main__":
+    ip, porta, filename = file_parser()
+    client = Client()
     
+    try:
+        client.send_request(ip, porta, filename)
+    
+    except s.timeout:
+        print("Erro: servidor não encontrado")
+    
+    finally:
+        client.socket.close()
