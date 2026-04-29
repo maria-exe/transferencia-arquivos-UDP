@@ -5,7 +5,7 @@ MAX_DGRAM = 1472
 PORT = 5000
 FORMAT = "!I I I"
 H_SIZE = struct.calcsize(FORMAT)  
-PAYLOAD_SIZE = MAX_DGRAM - H_SIZE
+MSS = MAX_DGRAM - H_SIZE
 
 # estrutura do pacote de dados
 @dataclass
@@ -51,7 +51,7 @@ def get(request_file): # requisicao de arquivos
     return f"GET:{request_file}".encode()
 
 def error(request_file): # mensagens de erro
-    return f"ERR:FILE {request_file} NOT FOUND".encode()
+    return f"ERR: Arquivo {request_file} nao encontrado".encode()
 
 def retrans_request(segments): # solicitacao de retransmissao
     str_seg = ':'.join(map(str, segments))

@@ -1,4 +1,4 @@
-import os.path, socket as s, threading
+import os.path, socket as s, threading, math
 from common import protocolo as p
 
 class Server:
@@ -6,49 +6,70 @@ class Server:
     def __init__(self):
         self.segments = {}
         self.socket = s.socket(s.AF_INET, s.SOCK_DGRAM)
+        self.socket.bind(('', p.PORT))
 
     # verifica se o arquivo existe
-    def _verify_request_file(self, filename):
-        path = f"./servidor/files/{filename}"
+    def _verify_request_file(self, file_name):
+        path = f"./servidor/files/{file_name}"
         return os.path.exists(path) and os.path.isfile(path)
 
     # divisao de arquivos em chuncks - MTU
-    def send_file(self, filename):
-        pass
+    def send_file(self, file_name, addr):
+        file_size = os.path.getsize(f"./servidor/files/{file_name}")
+        total_segments = math.ceil(file_size/p.MSS)
+        seq_num = 0
+        
+        with open(f"./servidor/files/{file_name}", "rb") as f:
+            chunk = f.read(p.MSS)
+            while chunk:                              
+                segment = p.make_pkt(seq_num, chunk, total_segments)
+                self.segments[seq_num] = segment
+                
+                package = p.pack_pkt(segment)
+                self.socket.sendto(package, addr)
 
-    def handle_request(self, filename, addr):
-        if self._verify_request_file(filename):
-            # self.send_file() # lógica de segmentação dos dados
-            self.socket.sendto(0, addr)
-            # prossegue com a requisição
-            pass
-        else: 
-            p.error(filename)
-            self.in_listen(self)
+                seq_num += 1
+     
+    def handle_request(self, data, addr):
+            request_type, decoded_data = p.decode_message(data)
+
+            if request_type == "GET": 
+                if self._verify_request_file(decoded_data):# se o arquivo existe
+                    self.send_file(self, decoded_data, addr)
+                
+                else: 
+                    self.send_error(data, addr)
+        
+            elif request_type == "RTS":
+                self.retransmit_data(self)
+
+            else: 
+                print("Mensagem desconhecida")
  
-    # em espera pela requisicao do cliente
+    def send_error(self, data, addr):
+        return self.socket.sendto(p.error(data), addr)
+        
     def in_listen(self):
-        self.socket.bind(('', p.PORT))
         print("Em escuta . . . ")
-
+        
         while True:
-            msg, addr = self.socket.recvfrom(p.MAX_DGRAM)
-            type, decoded_msg = p.decode_message(msg)
-
-            print(f"Recebi de {addr}: {decoded_msg}")
-
+            data, addr = self.socket.recvfrom(p.MAX_DGRAM)
+            thread = threading.Thread (
+            target=self.handle_request,
+            args=(data, addr) )
             
-            # mod_msg = msg.decode().upper()
-            # self.socket.sendto(mod_msg.encode(), addr)
-    
-    def create_segments(self):
-        pass
+            thread.start()
 
-    def request_file_process(self):
-        pass
-
-    def file_transmission(self):
-        pass
+    def retransmit_data(self, missing_segments, addr):                  
+        for seg in missing_segments:
+            if self.segments.get(seg) is None:
+                print(f"Segmento: {seg} nao foi encontrado.")
+            
+            else:
+                package = p.pack_pkt(self.segments[seg])
+                self.socket.sendto(package, addr)
+                           
+   
 
 
  

@@ -25,9 +25,7 @@ class Client:
     def send_request(self, ip, port, file_name):
         message = p.get(file_name)
         self.socket.sendto(message, (ip, port))
-
-
-        resp, addr = self.clientSocket.recvfrom(p.MAX_DGRAM)
+        resp, addr = self.socket.recvfrom(p.MAX_DGRAM)
 
         print('Servidor:', resp.decode())
         self.socket.close()
@@ -38,21 +36,24 @@ class Client:
     def mount_segment(self):
         pass
 
-    def save_file(self, filename, mount_data):
+    def save_file(self, file_name, mount_data):
         folder = "./cliente/downloads/"
         os.makedirs(folder, exist_ok=True)
         
-        full_path = os.path.join(folder, filename)
+        full_path = os.path.join(folder, file_name)
 
         try:
             with open(full_path, "wb") as f:
                 f.write(mount_data)
                 print("Arquivo salvo com sucesso!")
+                
+                os.system(f"xdg-open {full_path}") # mostra arquivo
         
         except OSError as e:
             print(f"Erro ao salvar arquivo: {e}")
 
-
-    
-    # simulacao de perda de pacote
     # solicitar retransmissão de arquivos
+    def request_retransmit(self):
+        pass
+    # simulacao de perda de pacote
+    
