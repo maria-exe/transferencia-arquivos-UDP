@@ -62,7 +62,6 @@ class Server:
             else:
                 print(f"Reenvio por timeout . . .")
 
-                
      
     def handle_request(self, data, addr):
         request_type, decoded_data = p.decode_message(data)

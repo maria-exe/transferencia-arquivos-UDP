@@ -86,7 +86,7 @@ class Client:
                         if file_end or wnd_end:
                             ack_msg = p.ack(dmount_seg.seg)
                             self.socket.sendto(ack_msg, addr)
-
+                            
             except s.timeout:
                 break
         
