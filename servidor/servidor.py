@@ -7,6 +7,8 @@ class Server:
 # file
     def __init__(self):
         self.segments = {}
+        self.ack = {}
+        self.ack_events = {}
         self.socket = s.socket(s.AF_INET, s.SOCK_DGRAM)
         self.socket.bind(('', p.PORT))
 
@@ -14,27 +16,52 @@ class Server:
     def _verify_request_file(self, file_name):
         path = os.path.join(os.path.dirname(__file__), 'files', file_name)
         return os.path.exists(path) and os.path.isfile(path)
-
+    
     # divisao de arquivos em chuncks - MTU
     def send_file(self, file_name, addr):
-        path = os.path.join(os.path.dirname(__file__), 'files')
+        path = os.path.join(os.path.dirname(__file__), 'files', file_name)
 
-        file_size = os.path.getsize(os.path.join(path, file_name))
+        file_size = os.path.getsize(path)
         total_segments = math.ceil(file_size/p.MSS)
-        seq_num = 0
 
-        self.segments[addr] = {}        
+        self.segments[addr] = {} 
+        self.ack[addr] = -1
 
-        with open(os.path.join(path, file_name), "rb") as f:
+        self.ack_events[addr] = threading.Event()
+
+        seq_num = 0       
+
+        with open(path, "rb") as f:
             chunk = f.read(p.MSS)
             while chunk:                              
-                segment = p.make_pkt(seq_num, chunk, total_segments)
-                self.segments[addr][seq_num] = segment
-                package = p.pack_pkt(segment)
-                self.socket.sendto(package, addr)
-                
+                segment = p.make_seg(seq_num, chunk, total_segments)
+                self.segments[addr][seq_num] = segment         
                 seq_num += 1
                 chunk = f.read(p.MSS)
+
+        print("Transferencia iniciada . . .")
+        # python cliente.py @127.0.0.1:2000/teste2.pdf
+        base = 0
+        while base < total_segments:
+            max_wnd = min(base + p.WND_SIZE, total_segments)
+
+            for s in range(base, max_wnd):
+                package = p.pack_pkt(self.segments[addr][s])
+                self.socket.sendto(package, addr)
+
+            if max_wnd == total_segments:
+                break
+            
+            self.ack_events[addr].clear()
+
+            ack_in_time = self.ack_events[addr].wait(timeout=0.5)
+            
+            if ack_in_time and self.ack.get(addr, -1) >= max_wnd - 1:
+                base += p.WND_SIZE
+            
+            else:
+                print(f"Reenvio por timeout . . .")
+
                 
      
     def handle_request(self, data, addr):
@@ -49,6 +76,11 @@ class Server:
         
         elif request_type == "RTS":
             self.retransmit_data(decoded_data, addr)
+
+        elif request_type == "ACK":
+            self.ack[addr] = decoded_data
+            if addr in self.ack_events:
+                self.ack_events[addr].set()
 
         else: 
             print("Mensagem desconhecida")
@@ -69,7 +101,7 @@ class Server:
 
     def retransmit_data(self, missing_segments, addr): 
         if addr not in self.segments:
-            print(f"Nenhuma sesssao ativa para {addr}")
+            print(f"Nenhuma sessao ativa para {addr}")
             return    
                      
         for seg in missing_segments:
@@ -79,8 +111,6 @@ class Server:
             else:
                 print(f"Segmento: {seg} nao foi encontrado.")
                 
-                           
-
 # instancia do servidor
 if __name__ == "__main__":
     server = Server()

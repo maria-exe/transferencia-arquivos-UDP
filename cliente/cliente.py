@@ -1,8 +1,11 @@
 import socket as s
-import os, sys
+import os, sys, random
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import protocolo as p
+
+LOSS_SIMUL = False
+LOSS_RATE = 0.01
 
 # requisicao do usuario (@IP_Servidor:Porta_Servidor/nome_do_arquivo.ext)
 def file_parser():
@@ -28,20 +31,22 @@ class Client:
         addr = (ip, port)
         message = p.get(file_name)
         
-        retries = 0
-        
         self.socket.sendto(message, (ip, port))
-
-        self.receive_segments()
         
-        while self.missing_segments() and retries < p.MAX_RETRIES:
-            faltantes_antes = len(self.missing_segments())
+        self.receive_segments()
+
+        retries = 0
+        max_retries = 3
+
+        while self.missing_segments() and retries < max_retries:
+            last_missing = len(self.missing_segments())
+            
             self.request_retransmit(addr)
             self.receive_segments()
 
-            if len(self.missing_segments()) == faltantes_antes:
+            if len(self.missing_segments()) == last_missing:
                 retries += 1
-                print(f"Falha na retransmissao. Tentativa {retries}/{p.MAX_RETRIES}")
+                print(f"Falha na retransmissao")
             else:
                 retries = 0 
             
@@ -50,8 +55,6 @@ class Client:
             sys.exit(1)
 
         data = self.mount_segment()
-        print(f"Segmentos recebidos: {len(self.segments)}")
-        print(f"Total esperado: {self.total_segments}")
         self.save_file(file_name, data)
 
         
@@ -67,11 +70,22 @@ class Client:
                     sys.exit(1)
 
                 elif msg_type == "DATA":
-                    dmount_seg = p.extract_pkt(recv_seg)
+                    dmount_seg = p.unpack_pkt(recv_seg)
 
                     if not p.is_corrupt(dmount_seg):
+
+                        if LOSS_SIMUL and random.random() < LOSS_RATE:
+                            print(f"\nSegmento {dmount_seg.seg} descartado.")
+
                         self.segments[dmount_seg.seg] = dmount_seg
                         self.total_segments = dmount_seg.total_seg
+
+                        file_end = dmount_seg.seg >= self.total_segments - 1
+                        wnd_end = (dmount_seg.seg + 1) % p.WND_SIZE == 0
+
+                        if file_end or wnd_end:
+                            ack_msg = p.ack(dmount_seg.seg)
+                            self.socket.sendto(ack_msg, addr)
 
             except s.timeout:
                 break
@@ -82,7 +96,7 @@ class Client:
         for seq in sorted(self.segments):
             file_data += self.segments[seq].data
         
-        print(f"Tamanho remontado: {len(file_data)} bytes")
+        print(f"Arquivo remontado.")
         return file_data
 
     # verifica se foi recebido todos os segmentos
@@ -114,10 +128,13 @@ class Client:
     # solicitar retransmissão de arquivos
     def request_retransmit(self, addr):
         missing = self.missing_segments()
-        message = p.retrans_request(missing)
         print(f"Solicitando retransmissao . . .")
-        self.socket.sendto(message, addr)
 
+        chunk_size = 100
+        for i in range(0, len(missing), chunk_size):
+            lote = missing[i : i + chunk_size]
+            message = p.retrans_request(lote)
+            self.socket.sendto(message, addr)
 
 if __name__ == "__main__":
     ip, porta, filename = file_parser()

@@ -1,48 +1,47 @@
 from dataclasses import dataclass
 import struct, zlib
 
+
 MAX_DGRAM = 1472
-PORT = 5000
+PORT = 2000
 FORMAT = "!I I I"
-H_SIZE = struct.calcsize(FORMAT)  
-MSS = MAX_DGRAM - H_SIZE
-TIMEOUT = 3
-MAX_RETRIES = 3
+
+HEADER = struct.calcsize(FORMAT)
+MSS = MAX_DGRAM - HEADER
+TIMEOUT = 2
+WND_SIZE = 300
+
 # estrutura do pacote de dados
 @dataclass
 class Segment: 
+    seg: int
     checksum: int
-    seg: int    
-    data: bytes
     total_seg: int
+    data: bytes
 
 def checksum(data):
     return zlib.crc32(data)
 
-# cria o segmento
-def make_pkt(seg, data, total_seg):
+def make_seg(seg, data, total_seg):
     csum = checksum(data)
-    return Segment(csum, seg, data, total_seg)
+    return Segment(seg, csum, total_seg, data)
 
-# transforma o segmento em bytes (empacota)
+# empacota segmento
 def pack_pkt(segment):
-    hr_seq = struct.pack(
-        FORMAT,
+    header = struct.pack (
+        FORMAT, 
         segment.seg,
         segment.total_seg,
         segment.checksum
     )
-    return hr_seq + segment.data
+    return header + segment.data
 
-# desempacota o segmento
-def extract_pkt(pack_data):
-    hr_seq = pack_data[:H_SIZE]
-    data = pack_data[H_SIZE:]
-    seg, total_seq, csum = struct.unpack(FORMAT, hr_seq)
+def unpack_pkt(pack_data):
+    seg, total_seq, csum = struct.unpack_from(FORMAT, pack_data)
+    data = pack_data[HEADER:]
     
-    return Segment(csum, seg, data, total_seq)
-    
-# verifica o checksum
+    return Segment(seg, csum, total_seq, data)
+
 def is_corrupt(segment):
     if checksum(segment.data) == segment.checksum:
         return False
@@ -58,6 +57,9 @@ def retrans_request(segments): # solicitacao de retransmissao
     str_seg = ':'.join(map(str, segments))
     return f"RTS/{str_seg}".encode()
 
+def ack(seq_num):
+    return f"ACK/{seq_num}".encode()
+
 def decode_message(bytes_msg): # decodifica os bytes e identifica o tipo de mensagem de controle
     if bytes_msg.startswith(b"GET"):
         return "GET", bytes_msg.decode().split("/", 1)[1]
@@ -66,15 +68,17 @@ def decode_message(bytes_msg): # decodifica os bytes e identifica o tipo de mens
         return "ERR", bytes_msg.decode().split("/", 1)[1]
     
     elif bytes_msg.startswith(b"RTS"):
-        
-        msg = bytes_msg.decode().split("/", 1)[1]
-        
+        msg = bytes_msg.decode().split("/", 1)[1] 
         segments = []
-        for s in msg.split(":"):
-            segments.append(int(s))
-        
+        if msg:
+            for s in msg.split(":"):
+                segments.append(int(s))
         return "RTS", segments
     
+    elif bytes_msg.startswith(b"ACK"):
+        seg = int(bytes_msg.decode().split("/", 1)[1])
+        return "ACK", seg
+
     return "DATA", None
     
 
