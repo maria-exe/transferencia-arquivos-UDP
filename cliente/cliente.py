@@ -91,10 +91,13 @@ class Client:
                 break
         
     def mount_segment(self):
+        print("Remotando arquivo.")
         file_data = b"" # tipo obj de bytes
         
-        for seq in sorted(self.segments):
-            file_data += self.segments[seq].data
+        data = [self.segments[seq].data for seq in sorted(self.segments.keys())]
+        file_data = b"".join(data)
+        # for seq in sorted(self.segments):
+        #     file_data += self.segments[seq].data
         
         print(f"Arquivo remontado.")
         return file_data

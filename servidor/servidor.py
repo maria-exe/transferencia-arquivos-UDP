@@ -40,7 +40,7 @@ class Server:
                 chunk = f.read(p.MSS)
 
         print("Transferencia iniciada . . .")
-        # python cliente.py @127.0.0.1:2000/teste2.pdf
+        # python cliente.py @127.0.0.1:2000/teste1.pdf
         base = 0
         while base < total_segments:
             max_wnd = min(base + p.WND_SIZE, total_segments)
