@@ -39,7 +39,7 @@ class Server:
                 seq_num += 1
                 chunk = f.read(p.MSS)
 
-        print("Transferencia iniciada . . .")
+        print(f"Transferencia iniciada para IP/Porta: {addr} . . .")
         # python cliente.py @127.0.0.1:2000/teste1.pdf
         base = 0
         while base < total_segments:
@@ -60,7 +60,7 @@ class Server:
                 base += p.WND_SIZE
             
             else:
-                print(f"Reenvio por timeout . . .")
+                print(f"   Reenvio por timeout . . .")
 
      
     def handle_request(self, data, addr):
@@ -100,13 +100,15 @@ class Server:
 
     def retransmit_data(self, missing_segments, addr): 
         if addr not in self.segments:
-            print(f"Nenhuma sessao ativa para {addr}")
+            print(f"Cliente {addr} inativo")
             return    
-                     
+
+        print(f"Retransmitindo . . .")        
         for seg in missing_segments:
             if self.segments[addr].get(seg) is not None:
                 package = p.pack_pkt(self.segments[addr][seg])
                 self.socket.sendto(package, addr)
+
             else:
                 print(f"Segmento: {seg} nao foi encontrado.")
                 

@@ -119,7 +119,8 @@ class Client:
         try:
             with open(full_path, "wb") as f:
                 f.write(mount_data)
-            print("Arquivo salvo com sucesso!")
+            
+            print("Arquivo salvo")
             
             os.system(f"xdg-open {full_path}")  
         
@@ -149,3 +150,4 @@ if __name__ == "__main__":
     
     finally:
         client.socket.close()
+        print("Comunicacao Encerrada :)")
